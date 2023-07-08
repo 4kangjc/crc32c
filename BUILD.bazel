@@ -1,0 +1,92 @@
+config_setting(
+    name = "crc32c_with_glog",
+    values = {"define": "glog=1"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "crc32c_with_sse42",
+    define_values = {"define": "have_sse42=1"},
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "crc32c_with_arm64_crc32c",
+    values = {"define": "have_arm64_crc32c=1"},
+    visibility = ["//visibility:public"],
+)
+
+CRC32C_COPTS = select({
+    ":crc32c_with_sse42": [
+        "-DHAVE_SSE42=1",
+        "-msse4.2",
+    ],
+    "//conditions:default": [],
+}) + select({
+    ":crc32c_with_arm64_crc32c": [
+        "-DHAVE_ARM64_CRC32C=1",
+        "-march=armv8-a+crc+crypto",
+    ],
+    "//conditions:default": [],
+}) + select({
+    ":crc32c_with_glog": [
+        "-DCRC32C_TESTS_BUILT_WITH_GLOG=1",
+    ],
+    "//conditions:default": [],
+}) + [
+    "-DHAVE_MM_PREFETCH=0",
+    "-DHAVE_STRONG_GETAUXVAL=0",
+    "-DHAVE_WEAK_GETAUXVA=0",
+] + ["-DCRC32C_BAZEL_BUILD"]
+
+genrule(
+    name = "crc32c_config_h",
+    srcs = ["src/crc32c_config.h.in"],
+    outs = ["include/crc32c/crc32c_config.h"],
+    cmd = "cp $< $@",
+)
+
+cc_library(
+    name = "crc32c",
+    srcs = [
+        "src/crc32c.cc",
+        "src/crc32c_arm64.cc",
+        "src/crc32c_arm64.h",
+        "src/crc32c_arm64_check.h",
+        "src/crc32c_internal.h",
+        "src/crc32c_portable.cc",
+        "src/crc32c_prefetch.h",
+        "src/crc32c_read_le.h",
+        "src/crc32c_round_up.h",
+        "src/crc32c_sse42.cc",
+        "src/crc32c_sse42.h",
+        "src/crc32c_sse42_check.h",
+    ],
+    hdrs = [
+        "include/crc32c/crc32c.h",
+        ":crc32c_config_h",
+    ],
+    copts = CRC32C_COPTS,
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "crc32c_tests",
+    srcs = [
+        "src/crc32c_arm64_unittest.cc",
+        "src/crc32c_extend_unittests.h",
+        "src/crc32c_portable_unittest.cc",
+        "src/crc32c_prefetch_unittest.cc",
+        "src/crc32c_read_le_unittest.cc",
+        "src/crc32c_round_up_unittest.cc",
+        "src/crc32c_sse42_unittest.cc",
+        "src/crc32c_test_main.cc",
+        "src/crc32c_unittest.cc",
+    ],
+    copts = CRC32C_COPTS,
+    deps = [
+        ":crc32c",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

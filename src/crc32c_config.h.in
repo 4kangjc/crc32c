@@ -5,6 +5,8 @@
 #ifndef CRC32C_CRC32C_CONFIG_H_
 #define CRC32C_CRC32C_CONFIG_H_
 
+#if !defined(CRC32C_BAZEL_BUILD)
+
 // Define to 1 if building for a big-endian platform.
 #cmakedefine01 BYTE_ORDER_BIG_ENDIAN
 
@@ -32,5 +34,29 @@
 
 // Define to 1 if CRC32C tests have been built with Google Logging.
 #cmakedefine01 CRC32C_TESTS_BUILT_WITH_GLOG
+
+#else
+
+#if (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
+     __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+#define BYTE_ORDER_BIG_ENDIAN 0
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
+    __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define BYTE_ORDER_BIG_ENDIAN 1
+#elif defined(_WIN32) || defined(__x86_64__) || defined(__aarch64__)
+#define BYTE_ORDER_BIG_ENDIAN 0
+#else
+#error "endian detection failed for current compiler"
+#endif // 
+
+#ifdef __has_builtin
+#  if __has_builtin(__builtin_prefetech)
+#    define HAVE_BUILTIN_PREFETCH 1
+#  endif
+#elif defined(__GNUC__) && (__GNUC__ > 3 || __GNUC__ == 3 && __GNUC_MINOR__ >= 4)
+#    define HAVE_BUILTIN_PREFETCH 1
+#endif
+
+#endif // CRC32C_WITH_BAZEL
 
 #endif  // CRC32C_CRC32C_CONFIG_H_
